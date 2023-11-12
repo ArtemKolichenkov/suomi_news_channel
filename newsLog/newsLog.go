@@ -14,11 +14,11 @@ var client *redis.Client
 var ctx = context.Background()
 
 // Initialize Redis client
-func InitRedisClient() {
+func InitRedisClient(redisUrl string) {
 	client = redis.NewClient(&redis.Options{
-		Addr:     "redis:6379", // Replace with your Redis server address
-		Password: "",           // No password for local Redis
-		DB:       0,            // Default DB
+		Addr:     redisUrl, // Replace with your Redis server address
+		Password: "",       // No password for local Redis
+		DB:       0,        // Default DB
 	})
 }
 

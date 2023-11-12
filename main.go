@@ -3,35 +3,22 @@ package main
 import (
 	"log"
 	"os"
-	"strconv"
 
-	"github.com/joho/godotenv"
 	"github.com/mmcdole/gofeed"
 
 	bot "suomi_news_channel/bot"
 	newsLog "suomi_news_channel/newsLog"
+	"suomi_news_channel/utils"
 )
-
-var adminChannelId int64
 
 func main() {
 	initLog()
 
 	log.Println("Starting script")
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	botToken, channelId, adminChannelId, redisUrl := utils.CheckEnv()
 
-	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
-
-	var channelId int64
-	channelId, _ = strconv.ParseInt(os.Getenv("CHANNEL_ID"), 10, 64)
-
-	adminChannelId, _ = strconv.ParseInt(os.Getenv("ADMIN_CHANNEL_ID"), 10, 64)
-
-	newsLog.InitRedisClient()
+	newsLog.InitRedisClient(redisUrl)
 
 	bot.Init(botToken)
 
@@ -71,21 +58,9 @@ func main() {
 			break
 		}
 	}
-
-	// Handle potential errors
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func initLog() {
-	//     file, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	//
-	//     if err != nil {
-	//         log.Fatal(err)
-	//     }
-	//    log.SetOutput(file);
-
 	log.SetOutput(os.Stdout) // todo move log into wrapper and log both in file and cli
 }
 
