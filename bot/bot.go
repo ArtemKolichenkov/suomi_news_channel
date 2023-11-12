@@ -3,12 +3,14 @@ package bot
 import (
 	"fmt"
 	"log"
+	"strings"
+	"suomi_news_channel/newsLog"
+	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/mmcdole/gofeed"
 )
 
-var logger *log.Logger
 var bot *tgbotapi.BotAPI
 
 func Init(botToken string) {
@@ -21,44 +23,60 @@ func Init(botToken string) {
 	log.Println("Bot is initialized")
 }
 
-func AskForApproval(adminChannelId int64, item *gofeed.Item) tgbotapi.Message {
-	msg := tgbotapi.NewMessage(adminChannelId, fmt.Sprintf("Постим?\n\n%s\n%s", item.Title, item.Link))
+func AskForApproval(adminChannelId int64, item *newsLog.EnhancedFeedItem) (*tgbotapi.Message, error) {
+	msg := tgbotapi.NewMessage(adminChannelId, fmt.Sprintf("Постим?\n\n%s\n%s", item.Item.Title, item.Item.Link))
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Да", "yes"),
-			tgbotapi.NewInlineKeyboardButtonData("Нет", "no"),
+			tgbotapi.NewInlineKeyboardButtonData("Да", fmt.Sprintf("yes:%s", item.ID)),
+			tgbotapi.NewInlineKeyboardButtonData("Нет", fmt.Sprintf("no:%s", item.ID)),
 		),
 	)
 
 	message, err := bot.Send(msg)
 	if err != nil {
-		fmt.Println(err)
-		log.Fatal(err)
+		return nil, err
 	}
 
-	log.Println("Bot asked for approval")
-
-	return message
+	return &message, nil
 }
 
-func GetUpdatesOnApprovals() []tgbotapi.Update {
-	var result []tgbotapi.Update
-
+func SubscribeForUpdates(wg *sync.WaitGroup, channelId int64, adminChannelId int64) {
+	defer wg.Done()
+	log.Println("[SubscribeForUpdates] START")
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates, _ := bot.GetUpdatesChan(u)
 
 	for update := range updates {
 		if update.CallbackQuery != nil {
-			result = append(result, update)
-
-			log.Println("Got updates on approval")
-
-			return result
+			handleBotUpdate(update, channelId, adminChannelId)
 		}
 	}
+	log.Println("[SubscribeForUpdates] END")
+}
 
-	return result
+// Handle updates coming from the admin channel (approve/reject posts, etc)
+func handleBotUpdate(update tgbotapi.Update, channelId int64, adminChannelId int64) {
+	if update.CallbackQuery != nil {
+		isApproved := strings.Split(update.CallbackQuery.Data, ":")[0] == "yes"
+		postId := strings.Split(update.CallbackQuery.Data, ":")[1]
+		feedItem, err := newsLog.GetPostByID(postId)
+		if err != nil {
+			log.Println("Could not get post info from Redis")
+			// TODO: Send error & resubmission request message to admin
+		}
+		if isApproved {
+			PostPieceOfNews(channelId, &feedItem.Item)
+			// TODO: actually verify that it was published instead of assuming it
+			feedItem.Status = "published"
+		} else {
+			feedItem.Status = "rejected"
+		}
+
+		newsLog.SavePostToRedis(feedItem)
+		NotifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, isApproved)
+		DeleteQuestionMessage(adminChannelId, feedItem.ApproveMessage)
+	}
 }
 
 func PostPieceOfNews(channelId int64, item *gofeed.Item) {
@@ -98,7 +116,6 @@ func NotifyAdminAboutPosting(channelId int64, approved bool) {
 		replyText = "Запостили, считаем лайки"
 	}
 
-	// Send a reply to the user
 	reply := tgbotapi.NewMessage(channelId, replyText)
 
 	_, err := bot.Send(reply)
