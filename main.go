@@ -9,6 +9,7 @@ import (
 	"github.com/mmcdole/gofeed"
 
 	bot "suomi_news_channel/bot"
+	newsLog "suomi_news_channel/newsLog"
 )
 
 var adminChannelId int64
@@ -23,21 +24,24 @@ func main() {
         log.Fatal("Error loading .env file")
     }
 
-    // Get the Telegram Bot Token from the environment variable
     botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 
-	// Your Channel ID (replace with your channel ID)
 	var channelId int64
 	channelId, _ = strconv.ParseInt(os.Getenv("CHANNEL_ID"), 10, 64)
 
 	adminChannelId, _ = strconv.ParseInt(os.Getenv("ADMIN_CHANNEL_ID"), 10, 64)
 
+	newsLog.InitRedisClient();
+
 	bot.Init(botToken);
 
 	feed := getFeed();
 
-	// Check each feed item
 	for _, item := range feed.Items {
+        if (newsLog.IfPostWasPosted(item)){
+            continue;
+        }
+
 		approvalMessage := bot.AskForApproval(adminChannelId, item);
 
 		updates := bot.GetUpdatesOnApprovals();
@@ -51,6 +55,7 @@ func main() {
                 bot.PostPieceOfNews(channelId, item);
             }
 
+            newsLog.RememberPostWasPosted(item)
             bot.NotifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, approved);
             bot.DeleteQuestionMessage(adminChannelId, approvalMessage);
 
@@ -86,6 +91,8 @@ func getFeed() *gofeed.Feed {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("Imported feed")
 
 	return feed;
 }

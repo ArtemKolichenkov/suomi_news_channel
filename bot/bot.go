@@ -17,6 +17,28 @@ func Init(botToken string){
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("Bot is initialized")
+}
+
+func AskForApproval(adminChannelId int64, item *gofeed.Item) tgbotapi.Message {
+    msg := tgbotapi.NewMessage(adminChannelId, fmt.Sprintf("Постим?\n\n%s\n%s", item.Title, item.Link))
+    msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+        tgbotapi.NewInlineKeyboardRow(
+            tgbotapi.NewInlineKeyboardButtonData("Да", "yes"),
+            tgbotapi.NewInlineKeyboardButtonData("Нет", "no"),
+        ),
+    )
+
+    message, err := bot.Send(msg)
+    if err != nil {
+    fmt.Println(err)
+        log.Fatal(err)
+    }
+
+	log.Println("Bot asked for approval")
+
+    return message;
 }
 
 func GetUpdatesOnApprovals() []tgbotapi.Update {
@@ -29,6 +51,10 @@ func GetUpdatesOnApprovals() []tgbotapi.Update {
     for update := range updates {
         if update.CallbackQuery != nil {
             result = append(result, update);
+
+	        log.Println("Got updates on approval")
+
+            return result
         }
     }
 
@@ -51,6 +77,8 @@ func PostPieceOfNews(channelId int64, item *gofeed.Item){
     if err != nil {
         log.Println(err)
     }
+
+	log.Println("Posted a piece of news")
 }
 
 func DeleteQuestionMessage(adminChannelId int64, message tgbotapi.Message){
@@ -60,6 +88,8 @@ func DeleteQuestionMessage(adminChannelId int64, message tgbotapi.Message){
     if err != nil {
         log.Println(err)
     }
+
+	log.Println("Removing old approval question")
 }
 
 func NotifyAdminAboutPosting(channelId int64, approved bool){
@@ -75,22 +105,6 @@ func NotifyAdminAboutPosting(channelId int64, approved bool){
     if err != nil {
         log.Println(err)
     }
-}
 
-func AskForApproval(adminChannelId int64, item *gofeed.Item) tgbotapi.Message {
-    msg := tgbotapi.NewMessage(adminChannelId, fmt.Sprintf("Постим?\n\n%s\n%s", item.Title, item.Link))
-    msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-        tgbotapi.NewInlineKeyboardRow(
-            tgbotapi.NewInlineKeyboardButtonData("Да", "yes"),
-            tgbotapi.NewInlineKeyboardButtonData("Нет", "no"),
-        ),
-    )
-
-    message, err := bot.Send(msg)
-    if err != nil {
-    fmt.Println(err)
-        log.Fatal(err)
-    }
-
-    return message;
+	log.Println("Admin was informed about an action")
 }
