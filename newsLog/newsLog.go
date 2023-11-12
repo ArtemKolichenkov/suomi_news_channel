@@ -3,8 +3,8 @@ package newsLog
 import (
 	"context"
 	"fmt"
-	"time"
 	"log"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/mmcdole/gofeed"
@@ -17,8 +17,8 @@ var ctx = context.Background()
 func InitRedisClient() {
 	client = redis.NewClient(&redis.Options{
 		Addr:     "redis:6379", // Replace with your Redis server address
-		Password: "",                // No password for local Redis
-		DB:       0,                 // Default DB
+		Password: "",           // No password for local Redis
+		DB:       0,            // Default DB
 	})
 }
 
@@ -33,11 +33,10 @@ func IfPostWasPosted(item *gofeed.Item) bool {
 		return false
 	}
 
+	if val == 1 {
+		log.Println("Post was posted")
 
-	if (val == 1){
-	    log.Println("Post was posted")
-
-	    return true;
+		return true
 	}
 
 	return false
@@ -53,5 +52,5 @@ func RememberPostWasPosted(item *gofeed.Item) {
 		log.Println("Error setting Redis key:", err)
 	}
 
-    log.Println("Remembered that post was posted")
+	log.Println("Remembered that post was posted")
 }

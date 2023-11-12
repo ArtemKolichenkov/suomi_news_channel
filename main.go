@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 	"github.com/mmcdole/gofeed"
 
 	bot "suomi_news_channel/bot"
@@ -15,60 +15,60 @@ import (
 var adminChannelId int64
 
 func main() {
-    initLog();
+	initLog()
 
-    log.Println("Starting script");
+	log.Println("Starting script")
 
-    err := godotenv.Load()
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-    botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 
 	var channelId int64
 	channelId, _ = strconv.ParseInt(os.Getenv("CHANNEL_ID"), 10, 64)
 
 	adminChannelId, _ = strconv.ParseInt(os.Getenv("ADMIN_CHANNEL_ID"), 10, 64)
 
-	newsLog.InitRedisClient();
+	newsLog.InitRedisClient()
 
-	bot.Init(botToken);
+	bot.Init(botToken)
 
-	feed := getFeed();
+	feed := getFeed()
 
-	maxNewsCount := 5;
-	newsCount := 0;
+	maxNewsCount := 5
+	newsCount := 0
 
 	for _, item := range feed.Items {
-        if (newsLog.IfPostWasPosted(item)){
-            continue;
-        }
-
-		approvalMessage := bot.AskForApproval(adminChannelId, item);
-
-		updates := bot.GetUpdatesOnApprovals();
-
-		for _, update := range updates {
-            approved := false
-
-            if update.CallbackQuery.Data == "yes" {
-                approved = true;
-
-                bot.PostPieceOfNews(channelId, item);
-            }
-
-            newsLog.RememberPostWasPosted(item)
-            bot.NotifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, approved);
-            bot.DeleteQuestionMessage(adminChannelId, approvalMessage);
-
-            // Stop waiting for updates
-            break
+		if newsLog.IfPostWasPosted(item) {
+			continue
 		}
 
-        newsCount++;
-        if (newsCount >= maxNewsCount){
-		    break;
+		approvalMessage := bot.AskForApproval(adminChannelId, item)
+
+		updates := bot.GetUpdatesOnApprovals()
+
+		for _, update := range updates {
+			approved := false
+
+			if update.CallbackQuery.Data == "yes" {
+				approved = true
+
+				bot.PostPieceOfNews(channelId, item)
+			}
+
+			newsLog.RememberPostWasPosted(item)
+			bot.NotifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, approved)
+			bot.DeleteQuestionMessage(adminChannelId, approvalMessage)
+
+			// Stop waiting for updates
+			break
+		}
+
+		newsCount++
+		if newsCount >= maxNewsCount {
+			break
 		}
 	}
 
@@ -78,16 +78,15 @@ func main() {
 	}
 }
 
-func initLog(){
-//     file, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-//
-//     if err != nil {
-//         log.Fatal(err)
-//     }
-//    log.SetOutput(file);
+func initLog() {
+	//     file, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	//
+	//     if err != nil {
+	//         log.Fatal(err)
+	//     }
+	//    log.SetOutput(file);
 
-
-    log.SetOutput(os.Stdout); // todo move log into wrapper and log both in file and cli
+	log.SetOutput(os.Stdout) // todo move log into wrapper and log both in file and cli
 }
 
 func getFeed() *gofeed.Feed {
@@ -102,5 +101,5 @@ func getFeed() *gofeed.Feed {
 
 	log.Println("Imported feed")
 
-	return feed;
+	return feed
 }
