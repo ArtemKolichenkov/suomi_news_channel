@@ -52,4 +52,6 @@ func RememberPostWasPosted(item *gofeed.Item) {
 	if err != nil {
 		log.Println("Error setting Redis key:", err)
 	}
+
+    log.Println("Remembered that post was posted")
 }
