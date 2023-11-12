@@ -7,31 +7,23 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - mysql
       - redis
-
-  # MySQL Database
-  mysql:
-    image: mysql:latest
-    environment:
-      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-      MYSQL_DATABASE: '${DB_DATABASE}'
-      MYSQL_USER: '${DB_USERNAME}'
-      MYSQL_PASSWORD: '${DB_PASSWORD}'
-      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
+    networks:
+      finews_network:
+        ipv4_address: 172.16.238.10
 
   # Redis Server
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
+    networks:
+      finews_network:
+        ipv4_address: 172.16.238.20
 
-volumes:
-  mysql-data:
-  redis-data:
+networks:
+  finews_network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.238.0/24
