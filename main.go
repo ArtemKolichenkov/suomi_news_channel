@@ -37,6 +37,9 @@ func main() {
 
 	feed := getFeed();
 
+	maxNewsCount := 5;
+	newsCount := 0;
+
 	for _, item := range feed.Items {
         if (newsLog.IfPostWasPosted(item)){
             continue;
@@ -63,7 +66,10 @@ func main() {
             break
 		}
 
-		break; // get only one message
+        newsCount++;
+        if (newsCount >= maxNewsCount){
+		    break;
+		}
 	}
 
 	// Handle potential errors
@@ -73,13 +79,15 @@ func main() {
 }
 
 func initLog(){
-    file, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+//     file, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+//
+//     if err != nil {
+//         log.Fatal(err)
+//     }
+//    log.SetOutput(file);
 
-    if err != nil {
-        log.Fatal(err)
-    }
 
-    log.SetOutput(file);
+    log.SetOutput(os.Stdout); // todo move log into wrapper and log both in file and cli
 }
 
 func getFeed() *gofeed.Feed {
