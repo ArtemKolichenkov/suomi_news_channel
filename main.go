@@ -12,10 +12,11 @@ import (
 )
 
 var adminChannelId int64
-var logger *log.Logger
 
 func main() {
     initLog();
+
+    log.Println("Starting script");
 
     err := godotenv.Load()
     if err != nil {
@@ -67,14 +68,13 @@ func main() {
 }
 
 func initLog(){
-    logfile, err := os.Create("app.log")
+    file, err := os.OpenFile("app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 
     if err != nil {
         log.Fatal(err)
     }
 
-    defer logfile.Close()
-    log.SetOutput(logfile)
+    log.SetOutput(file);
 }
 
 func getFeed() *gofeed.Feed {
