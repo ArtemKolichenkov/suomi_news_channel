@@ -1,19 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
 
-	"github.com/go-telegram-bot-api/telegram-bot-api"
     "github.com/joho/godotenv"
 	"github.com/mmcdole/gofeed"
+
+	bot "suomi_news_channel/bot"
 )
 
 var adminChannelId int64
 var logger *log.Logger
-var bot *tgbotapi.BotAPI
 
 func main() {
     initLog();
@@ -32,90 +31,39 @@ func main() {
 
 	adminChannelId, _ = strconv.ParseInt(os.Getenv("ADMIN_CHANNEL_ID"), 10, 64)
 
-	// Initialize Telegram bot
-	bot, err = tgbotapi.NewBotAPI(botToken)
-	if err != nil {
-		log.Fatal(err)
-	}
+	bot.Init(botToken);
 
 	feed := getFeed();
 
 	// Check each feed item
 	for _, item := range feed.Items {
-		approvalMessage := askForApproval(item);
+		approvalMessage := bot.AskForApproval(adminChannelId, item);
 
-		// Wait for the user's reply
-		u := tgbotapi.NewUpdate(0)
-		u.Timeout = 60
-		updates, _ := bot.GetUpdatesChan(u)
+		updates := bot.GetUpdatesOnApprovals();
 
-		for update := range updates {
-			if update.CallbackQuery != nil {
-				// User replied with "Yes" or "No"
-				approved := false
-				if update.CallbackQuery.Data == "yes" {
-					postPieceOfNews(channelId, item);
+		for _, update := range updates {
+            approved := false
 
-                    approved = true;
-				}
+            if update.CallbackQuery.Data == "yes" {
+                approved = true;
 
-                notifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, approved);
-                deleteQuestionMessage(adminChannelId, approvalMessage);
+                bot.PostPieceOfNews(channelId, item);
+            }
 
-				// Stop waiting for updates
-				break
-			}
+            bot.NotifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, approved);
+            bot.DeleteQuestionMessage(adminChannelId, approvalMessage);
+
+            // Stop waiting for updates
+            break
 		}
 
-		break
+		break; // get only one message
 	}
 
 	// Handle potential errors
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func postPieceOfNews(channelId int64, item *gofeed.Item){
-    postMessage := tgbotapi.NewMessage(channelId, fmt.Sprintf("%s\n%s", item.Title, item.Link))
-    postMessage.ParseMode = tgbotapi.ModeHTML
-    postMessage.DisableWebPagePreview = false
-
-    // Enable instant view feature
-// 					postMessage.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-// 						tgbotapi.NewInlineKeyboardRow(
-// 							tgbotapi.NewInlineKeyboardButtonSwitch("Read More", item.Link),
-// 						),
-// 					)
-
-    _, err := bot.Send(postMessage)
-    if err != nil {
-        log.Println(err)
-    }
-}
-
-func deleteQuestionMessage(adminChannelId int64, message tgbotapi.Message){
-    deleteMsg := tgbotapi.NewDeleteMessage(adminChannelId, message.MessageID);
-
-    _, err := bot.Send(deleteMsg)
-    if err != nil {
-        log.Println(err)
-    }
-}
-
-func notifyAdminAboutPosting(channelId int64, approved bool){
-    replyText := "Ок, больше не буду спрашивать про эту новость";
-    if (approved){
-        replyText = "Запостили, считаем лайки"
-    }
-
-    // Send a reply to the user
-    reply := tgbotapi.NewMessage(channelId, replyText)
-
-    _, err := bot.Send(reply)
-    if err != nil {
-        log.Println(err)
-    }
 }
 
 func initLog(){
@@ -127,23 +75,6 @@ func initLog(){
 
     defer logfile.Close()
     log.SetOutput(logfile)
-}
-
-func askForApproval(item *gofeed.Item) tgbotapi.Message {
-    msg := tgbotapi.NewMessage(adminChannelId, fmt.Sprintf("Постим?\n\n%s\n%s", item.Title, item.Link))
-    msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-        tgbotapi.NewInlineKeyboardRow(
-            tgbotapi.NewInlineKeyboardButtonData("Да", "yes"),
-            tgbotapi.NewInlineKeyboardButtonData("Нет", "no"),
-        ),
-    )
-
-    message, err := bot.Send(msg)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    return message;
 }
 
 func getFeed() *gofeed.Feed {
