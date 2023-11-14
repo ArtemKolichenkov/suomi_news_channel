@@ -48,3 +48,19 @@ HTTP_HOST=0.0.0.0
 Note that `HTTP_HOST` must be `0.0.0.0` and `PORT` should not be there at all (render handles it themselves)
 
 4. Click `Create Web Service`
+
+## Tests
+
+To run tests use:
+
+```bash
+go test ./...
+```
+
+The `./...` makes tests run in all subdirectories.
+
+To see more verbose output of tests use:
+
+```bash
+go test ./... -v
+```
