@@ -30,7 +30,7 @@ func main() {
 	go bot.SubscribeForUpdates(&wg, channelId, adminChannelId)
 
 	// Run goroutine that checks RSS feed every N minutes
-	go proposeNewsEveryNSeconds(60*2, adminChannelId)
+	go proposeNewsEveryNSeconds(60*10, adminChannelId)
 
 	wg.Wait()
 	bot.SendMessageToAdminChat(adminChannelId, "FATAL ERROR: Looks like bot stopped working, check logs.")
