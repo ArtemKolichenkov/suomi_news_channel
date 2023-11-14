@@ -23,7 +23,6 @@ func main() {
 	newsLog.InitRedisClient(redisUrl)
 	bot.Init(botToken)
 
-	wg.Add(1)
 	go dummyHttpServer(httpHost, httpPort)
 
 	// Run goroutine where bot listens for updates
@@ -31,9 +30,10 @@ func main() {
 	go bot.SubscribeForUpdates(&wg, channelId, adminChannelId)
 
 	// Run goroutine that checks RSS feed every N minutes
-	go proposeNewsEveryNSeconds(60*20, adminChannelId)
+	go proposeNewsEveryNSeconds(60*2, adminChannelId)
 
 	wg.Wait()
+	bot.SendMessageToAdminChat(adminChannelId, "FATAL ERROR: Looks like bot stopped working, check logs.")
 	log.Println("->> main END <<-")
 }
 
@@ -73,7 +73,10 @@ func proposeNews(adminChannelId int64) (int, error) {
 		} else {
 			enhancedItem.ApproveMessage = *approvalMessage
 		}
-		newsLog.SavePostToRedis(&enhancedItem)
+		err := newsLog.SavePostToRedis(&enhancedItem)
+		if err != nil {
+			log.Println("[proposeNews] Error while saving post to Redis, postId=", enhancedItem.ID, err)
+		}
 
 		newsCount++
 		if newsCount >= maxNewsCount {

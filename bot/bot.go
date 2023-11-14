@@ -62,24 +62,35 @@ func handleBotUpdate(update tgbotapi.Update, channelId int64, adminChannelId int
 		postId := strings.Split(update.CallbackQuery.Data, ":")[1]
 		feedItem, err := newsLog.GetPostByID(postId)
 		if err != nil {
-			log.Println("Could not get post info from Redis")
+			log.Println("[handleBotUpdate] Could not get post info from Redis, ID=", postId, err)
 			// TODO: Send error & resubmission request message to admin
 		}
+		var adminMessage string
 		if isApproved {
-			PostPieceOfNews(channelId, &feedItem.Item)
-			// TODO: actually verify that it was published instead of assuming it
+			err := PostPieceOfNews(channelId, &feedItem.Item)
+			if err != nil {
+				log.Println("[handleBotUpdate] Error while publishing a post, postId=", postId, err)
+				SendMessageToAdminChat(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("Failed to publish %s\nTry again later.", feedItem.Item.Title))
+				return
+			}
 			feedItem.Status = "published"
+			adminMessage = "Запостили, считаем лайки"
 		} else {
 			feedItem.Status = "rejected"
+			adminMessage = "Ок, больше не буду спрашивать про эту новость"
 		}
-
-		newsLog.SavePostToRedis(feedItem)
-		NotifyAdminAboutPosting(update.CallbackQuery.Message.Chat.ID, isApproved)
+		SendMessageToAdminChat(update.CallbackQuery.Message.Chat.ID, adminMessage)
 		DeleteQuestionMessage(adminChannelId, feedItem.ApproveMessage)
+
+		err = newsLog.SavePostToRedis(feedItem)
+		if err != nil {
+			log.Println("[handleBotUpdate] Error while saving post to Redis, postId=", postId, err)
+			SendMessageToAdminChat(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("Failed to update post (%s) status in Redis\nPost might get suggested again. Check logs.", postId))
+		}
 	}
 }
 
-func PostPieceOfNews(channelId int64, item *gofeed.Item) {
+func PostPieceOfNews(channelId int64, item *gofeed.Item) error {
 	postMessage := tgbotapi.NewMessage(channelId, fmt.Sprintf("%s\n%s", item.Title, item.Link))
 	postMessage.ParseMode = tgbotapi.ModeHTML
 	postMessage.DisableWebPagePreview = false
@@ -92,11 +103,7 @@ func PostPieceOfNews(channelId int64, item *gofeed.Item) {
 	// 					)
 
 	_, err := bot.Send(postMessage)
-	if err != nil {
-		log.Println(err)
-	}
-
-	log.Println("Posted a piece of news")
+	return err
 }
 
 func DeleteQuestionMessage(adminChannelId int64, message tgbotapi.Message) {
@@ -104,24 +111,21 @@ func DeleteQuestionMessage(adminChannelId int64, message tgbotapi.Message) {
 
 	_, err := bot.Send(deleteMsg)
 	if err != nil {
-		log.Println(err)
+		log.Println("[DeleteQuestionMessage] Failed to delete approval message", err)
+		return
 	}
 
-	log.Println("Removing old approval question")
+	log.Println("[DeleteQuestionMessage] Approval message was removed")
 }
 
-func NotifyAdminAboutPosting(channelId int64, approved bool) {
-	replyText := "Ок, больше не буду спрашивать про эту новость"
-	if approved {
-		replyText = "Запостили, считаем лайки"
-	}
-
-	reply := tgbotapi.NewMessage(channelId, replyText)
+func SendMessageToAdminChat(channelId int64, message string) {
+	reply := tgbotapi.NewMessage(channelId, message)
 
 	_, err := bot.Send(reply)
 	if err != nil {
-		log.Println(err)
+		log.Println("[SendMessageToAdminChat] Failed to send message to admin", err)
+		return
 	}
 
-	log.Println("Admin was informed about an action")
+	log.Println("[SendMessageToAdminChat] Admin was informed about an action")
 }
