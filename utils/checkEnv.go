@@ -11,9 +11,13 @@ import (
 // Checks environmental variables
 // Reports whether some of them are missing
 func CheckEnv() (string, int64, int64, string, string, string) {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	appEnv := os.Getenv("APP_ENV")
+	// In Railway env vars are present in runtime, not in .env file
+	if appEnv != "PROD" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
 	}
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken == "" {
@@ -33,13 +37,18 @@ func CheckEnv() (string, int64, int64, string, string, string) {
 	if redisUrl == "" {
 		log.Fatal("REDIS_URL is not set")
 	}
-	httpHost := os.Getenv("HTTP_HOST")
-	if httpHost == "" {
-		log.Fatal("HTTP_HOST is not set")
+	var redisUsername string = ""
+	var redisPassword string = ""
+	if appEnv == "PROD" {
+		// On localhost we don't need it
+		redisUsername = os.Getenv("REDIS_USERNAME")
+		if redisUsername == "" {
+			log.Fatal("REDIS_USERNAME is not set")
+		}
+		redisPassword = os.Getenv("REDIS_PASSWORD")
+		if redisPassword == "" {
+			log.Fatal("REDIS_PASSWORD is not set")
+		}
 	}
-	httpPort := os.Getenv("PORT")
-	if httpPort == "" {
-		log.Fatal("PORT is not set")
-	}
-	return botToken, channelId, adminChannelId, redisUrl, httpHost, httpPort
+	return botToken, channelId, adminChannelId, redisUrl, redisUsername, redisPassword
 }

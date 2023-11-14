@@ -16,10 +16,6 @@ CHANNEL_ID=<PUBLIC_CHANNEL_ID_FOR_NEWS>
 ADMIN_CHANNEL_ID=<PRIVATE_ADMIN_CHANNEL_ID_FOR_APPROVALS>
 
 REDIS_URL=127.0.0.1:6379
-HTTP_HOST=127.0.0.1
-# Note - name must be PORT for render deploy https://render.com/docs/web-services#deploying-from-a-git-repository
-# In prod don't even specify it, let render handle it themselves
-PORT=8080
 ```
 
 Run the app
@@ -28,26 +24,23 @@ Run the app
 go run main.go
 ```
 
-## Running in render.com
+## Running in Railway
 
-0. Create managed Redis in render.com (all default settings)
-1. Create "Web Service"
-2. Choose `Go` as runtime (use default build settings)
-3. Under `Advanced` menu - click `Add Secret File`, name the file `.env` and put this config in there:
+0. Create managed Redis in Railway (all default settings)
+1. Connect github repo to the project
+2. Add environmental variables
 
 ```
 TELEGRAM_BOT_TOKEN=<YOUR_BOT_TOKEN>
 CHANNEL_ID=<PUBLIC_CHANNEL_ID_FOR_NEWS>
 ADMIN_CHANNEL_ID=<PRIVATE_ADMIN_CHANNEL_ID_FOR_APPROVALS>
 
-# Get this url from render.com managed Redis
-REDIS_URL=red-blablabla:6379
-HTTP_HOST=0.0.0.0
+# Get this url from Railway managed Redis
+REDIS_URL=redis.railway.internal:6379
+REDIS_USERNAME=default
+REDIS_PASSWORD=password
+APP_ENV=PROD
 ```
-
-Note that `HTTP_HOST` must be `0.0.0.0` and `PORT` should not be there at all (render handles it themselves)
-
-4. Click `Create Web Service`
 
 ## Tests
 

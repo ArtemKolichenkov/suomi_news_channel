@@ -22,11 +22,12 @@ type EnhancedFeedItem struct {
 	ApproveMessage tgbotapi.Message
 }
 
-func InitRedisClient(redisUrl string) {
+func InitRedisClient(redisUrl string, redisUsername string, redisPassword string) {
 	client = redis.NewClient(&redis.Options{
-		Addr:     redisUrl, // Replace with your Redis server address
-		Password: "",       // No password for local Redis
-		DB:       0,        // Default DB
+		Addr:     redisUrl,      // Replace with your Redis server address
+		Username: redisUsername, // "" for local Redis
+		Password: redisPassword, // "" for local Redis
+		DB:       0,             // Default DB
 	})
 }
 
@@ -68,30 +69,4 @@ func GetPostByID(id string) (*EnhancedFeedItem, error) {
 	}
 
 	return &item, nil
-}
-
-// Note: only used for http API now
-func GetAllPosts() (map[string]interface{}, error) {
-	// TODO: Make it more type-safe, interface can screw things up down the line
-	results := make(map[string]interface{})
-	iter := client.Scan(ctx, 0, "post:*", 0).Iterator()
-	for iter.Next(ctx) {
-		key := iter.Val()
-		value, err := client.Get(ctx, key).Result()
-		if err != nil {
-			results[key] = "error: not found in Redis"
-		} else {
-			var item EnhancedFeedItem
-			err = json.Unmarshal([]byte(value), &item)
-			if err != nil {
-				results[key] = "error: failed unmarshalling"
-			} else {
-				results[key] = item
-			}
-		}
-	}
-	if err := iter.Err(); err != nil {
-		return nil, err
-	}
-	return results, nil
 }

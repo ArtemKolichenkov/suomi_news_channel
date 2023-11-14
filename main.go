@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"sort"
 	"sync"
@@ -22,11 +19,9 @@ var scheduleIntervalMinutes = 10
 func main() {
 	var wg sync.WaitGroup
 	initLog()
-	botToken, channelId, adminChannelId, redisUrl, httpHost, httpPort := utils.CheckEnv()
-	newsLog.InitRedisClient(redisUrl)
+	botToken, channelId, adminChannelId, redisUrl, redisUsername, redisPassword := utils.CheckEnv()
+	newsLog.InitRedisClient(redisUrl, redisUsername, redisPassword)
 	bot.Init(botToken)
-
-	go dummyHttpServer(httpHost, httpPort)
 
 	// Run goroutine where bot listens for updates
 	wg.Add(1)
@@ -114,31 +109,4 @@ func getFeed() (*gofeed.Feed, error) {
 
 	feed, err := fp.ParseURL(yliFeedURL)
 	return feed, err
-}
-
-// This is needed purely so render.com marks deploy as successful, since it looks for open 80 port
-// We can only use web server on render.com, because other services don't have $0 tier.
-// At the same time we can use this server to get some info from the bot, e.g. Redis content
-// TODO: obviously rework this for prod so it's not open for everyone (or come up with other solution without http server)
-func dummyHttpServer(httpHost string, httpPort string) {
-	http.HandleFunc("/redis", func(w http.ResponseWriter, r *http.Request) {
-		posts, err := newsLog.GetAllPosts()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error getting posts from Redis: %s", err), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-
-		jsonPosts, err := json.Marshal(posts)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error marshalling posts: %s", err), http.StatusInternalServerError)
-			return
-		}
-		w.Write(jsonPosts)
-	})
-
-	if err := http.ListenAndServe(httpHost+":"+httpPort, nil); err != nil {
-		// TODO: probably shouldn't fatal here but gracefully restart server or send notification
-		log.Fatal(err)
-	}
 }

@@ -74,10 +74,10 @@ func handleBotUpdate(update tgbotapi.Update, channelId int64, adminChannelId int
 				return
 			}
 			feedItem.Status = "published"
-			adminMessage = "Запостили, считаем лайки"
+			adminMessage = fmt.Sprintf("✅ Опубликовано:\n%s", feedItem.Item.Title)
 		} else {
 			feedItem.Status = "rejected"
-			adminMessage = "Ок, больше не буду спрашивать про эту новость"
+			adminMessage = fmt.Sprintf("⛔️ Отклонено:\n%s", feedItem.Item.Title)
 		}
 		SendMessageToAdminChat(update.CallbackQuery.Message.Chat.ID, adminMessage)
 		DeleteQuestionMessage(adminChannelId, feedItem.ApproveMessage)
